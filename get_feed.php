@@ -6,24 +6,21 @@ use \DateTime, \DateTimeZone;
 #error_reporting(E_ALL);
 #ini_set('display_errors', '1');
 header('Content-type: application/json');
+header('Access-Control-Allow-Origin: *'); // Turn on CORS
 libxml_use_internal_errors(true);
-
-if(isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] == "https://a.cms.omniupdate.com") 
-    header('Access-Control-Allow-Origin: '.$_SERVER['HTTP_ORIGIN']);
-else
-	exit('{"error" : "domain invalid"}');
 
 define("DEFAULT_SEARCH", "searchby");
 define("DEFAULT_KEY", "category");
 define("DEFAULT_RSS", "/rss/events.xml");
 
-function desc($a, $b) 
-{
-    return ($a['pubDate'] == $b['pubDate']) ? 0 : ($a['pubDate'] > $b['pubDate']) ? -1 : 1;
-}
 function asc($a, $b) 
 {
     return ($a['pubDate'] == $b['pubDate']) ? 0 : ($a['pubDate'] > $b['pubDate']) ? 1 : -1;
+}
+
+function desc($a, $b) 
+{
+    return ($a['pubDate'] == $b['pubDate']) ? 0 : ($a['pubDate'] > $b['pubDate']) ? -1 : 1;
 }
 
 function extractItems($item, &$posts)
@@ -51,26 +48,37 @@ function extractItems($item, &$posts)
 	];
 }
 
-$key = isset($_GET[DEFAULT_KEY]) ? filter_input(INPUT_GET, DEFAULT_KEY, FILTER_SANITIZE_STRING) : "";
-$searchby = isset($_GET[DEFAULT_SEARCH]) ? filter_input(INPUT_GET, DEFAULT_SEARCH, FILTER_SANITIZE_STRING) : "category";
-$feed = isset($_GET["feed"]) ? filter_input(INPUT_GET, "feed", FILTER_SANITIZE_STRING) : DEFAULT_RSS;
-$sort = isset($_GET["sort"]) && ($_GET["sort"] == "asc" || $_GET["sort"] == "desc") ? $_GET["sort"] : "asc";
+$key = trim(filter_input(INPUT_GET, DEFAULT_KEY, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH));
+$searchby = trim(filter_input(INPUT_GET, DEFAULT_SEARCH, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH));
+$feed = trim(filter_input(INPUT_GET, "feed", FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH));
+$sort = trim(filter_input(INPUT_GET, "feed", FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH));
 
-$feed = substr($feed, 0, 1) == DIRECTORY_SEPARATOR ? $_SERVER["DOCUMENT_ROOT"].$feed : $feed;
+if(!$sort || ($sort && $sort != "asc" && $sort != "desc"))
+	$sort = "asc";
+if(!$feed)
+	$feed = DEFAULT_RSS;
+if(!$searchby)
+	$searchby = DEFAULT_SEARCH;
 
+define("DEFAULT_SEARCH", "searchby");
+define("DEFAULT_KEY", "category");
+define("DEFAULT_RSS
 #
-# Important for security reasons.  Allowing people to view only xml files will keep them from putting whatever
-# value they want in this field.
-if(strpos($feed, "xml") === false) exit('{message: "Only XML files supported."}');
+# Only allow retreival of xml files
+if(strpos($feed, "xml") === false) 
+	exit('{message: "Only XML files supported."}');
 
 $xml = simplexml_load_file($feed);
-if(!$xml) exit('{message: "Invalid XML."}');
+
+if(!$xml) 
+	exit('{message: "Invalid XML."}');
+
 $xpath = empty($key) ? "/rss/channel/item" : "/rss/channel/item[" . $searchby . "='" . $key . "']";
+
 $posts = [];
 foreach($xml->xpath($xpath) as $item)
 	extractItems($item, $posts);
 
-$sort = "rss\\".$sort;
-usort($posts, $sort); // Sort items descending by pubDate;
+usort($posts, "rss\\".$sort); // Sort items by pubDate;
 echo json_encode($posts);
 ?>
