@@ -10,12 +10,8 @@ function get_html($url){
 	return $html;
 }
 header('Content-type: text/plain; charset=utf-8');
+header('Access-Control-Allow-Origin: *'); // Turn on CORS
 libxml_use_internal_errors(true);
-
-if(isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] == "https://a.cms.omniupdate.com") 
-    header('Access-Control-Allow-Origin: '.$_SERVER['HTTP_ORIGIN']);
-else
-	exit('{"error" : "domain invalid"}');
 
 $url = filter_input(INPUT_GET, "url", FILTER_SANITIZE_URL);
 $html = get_html($url);
